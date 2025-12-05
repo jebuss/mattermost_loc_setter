@@ -138,6 +138,9 @@ def _set_mattermost_custom_status(message, emoji="house", retries=3, delay=5):
                 logger.error(f"❌ Failed after {retries} attempts")
                 return
 
+@cli.command('set')
+@click.argument('message')
+@click.argument('emoji', default='house')
 def set_mattermost_custom_status(message, emoji):
     """Update Mattermost custom status (emoji + text)."""
     _set_mattermost_custom_status(message, emoji)
