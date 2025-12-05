@@ -1,0 +1,30 @@
+# Configuration for Mattermost Location Setter
+# Copy this file to ~/.config/mm-status/config.toml and fill in your details.
+
+# --- Credentials (REQUIRED) ---
+# Get these from your Mattermost account settings
+access_token = "your_mattermost_access_token"
+user_id = "your_mattermost_user_id"
+
+# --- Server (Optional) ---
+# URL of your Mattermost server
+url = "https://your-mattermost-server.com"
+
+# --- Networks (Optional) ---
+# Define a list of networks to check against.
+# The script will use the first match it finds.
+
+[[networks]]
+name = "At the Office"
+emoji = "office"
+ip_prefix = "10.1.0."
+
+[[networks]]
+name = "On Campus"
+emoji = "books"
+ip_prefix = "172.16.0."
+
+[[networks]]
+name = "Home Office"
+emoji = "house"
+ip_prefix = "192.168.1."
