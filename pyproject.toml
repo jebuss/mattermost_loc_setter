@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mattermost-loc-setter"
+version = "1.0.0"
+authors = [
+  { name="buss", email="you@example.com" },
+]
+description = "A tool to automatically set Mattermost status based on location and meeting state."
+readme = "README.md"
+requires-python = ">=3.7.3"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: MacOS",
+]
+dependencies = [
+    "click",
+    "requests",
+    "psutil>=5.7.0",
+    "certifi",
+    "tomli>=1.0.0,<2.0.0",  # Explizite Versionsbeschränkung
+]
+
+[project.scripts]
+mm-status = "mm_loc_setter.main:cli"
