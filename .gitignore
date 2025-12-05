@@ -14,3 +14,6 @@ venv/
 # IDEs
 .vscode/
 .idea/
+
+# Config files
+config.toml
