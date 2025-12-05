@@ -10,6 +10,14 @@ user_id = "your_mattermost_user_id"
 # URL of your Mattermost server
 url = "https://your-mattermost-server.com"
 
+# --- Working Hours (Optional) ---
+# Define when the script should check and update your status
+# Weekdays: 0=Monday, 1=Tuesday, 2=Wednesday, 3=Thursday, 4=Friday, 5=Saturday, 6=Sunday
+[working_hours]
+weekdays = [0, 1, 2, 3, 4]  # Monday to Friday
+start_time = "08:00"         # Start checking at 8:00 AM (format: "HH:MM")
+end_time = "18:00"           # Stop checking at 6:00 PM (format: "HH:MM")
+
 # --- Networks (Optional) ---
 # Define a list of networks to check against.
 # The script will use the first match it finds.

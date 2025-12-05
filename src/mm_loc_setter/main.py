@@ -47,6 +47,28 @@ USER_ID = get_config_value("user_id")
 # Load the list of networks
 CONFIGURED_NETWORKS = get_config_value("networks", [])
 
+# Load working hours configuration
+WORKING_DAYS = get_config_value("weekdays", [0, 1, 2, 3, 4], section="working_hours")
+start_time_str = get_config_value("start_time", "8:00", section="working_hours")
+end_time_str = get_config_value("end_time", "18:00", section="working_hours")
+
+# Helper function to parse time strings
+def parse_time_string(time_str, default_hour=0, default_minute=0):
+    """Parse a time string in format 'HH:MM' and return (hour, minute) tuple."""
+    if not time_str:
+        return (default_hour, default_minute)
+    
+    try:
+        parts = time_str.split(':')
+        hour = int(parts[0])
+        minute = int(parts[1]) if len(parts) > 1 else 0
+        return (hour, minute)
+    except (ValueError, IndexError) as e:
+        logger.warning(f"⚠️  Invalid time format '{time_str}', using default {default_hour}:{default_minute:02d}")
+        return (default_hour, default_minute)
+
+WORKING_START_HOUR, WORKING_START_MINUTE = parse_time_string(start_time_str, 8, 0)
+WORKING_END_HOUR, WORKING_END_MINUTE = parse_time_string(end_time_str, 18, 0)
 
 # Force IPv4 for all connections
 _orig_create_connection = connection.create_connection
@@ -202,8 +224,17 @@ def check_network_route(hostname, port=443):
 def auto_update():
     """Automatically update status based on location and meeting state."""
     now = datetime.now()
-    if now.weekday() >= 5 or now.hour < 8 or now.hour >= 18:
-        logger.debug("⏸️ Outside working hours or weekend - skipping.")
+    
+    if now.weekday() not in WORKING_DAYS:
+        logger.debug(f"⏸️  Today ({now.strftime('%A')}) is not a working day - skipping.")
+        sys.exit(0)
+    
+    # Check working hours with minutes
+    start_time = now.replace(hour=WORKING_START_HOUR, minute=WORKING_START_MINUTE, second=0, microsecond=0)
+    end_time = now.replace(hour=WORKING_END_HOUR, minute=WORKING_END_MINUTE, second=0, microsecond=0)
+    
+    if now < start_time or now >= end_time:
+        logger.debug(f"⏸️  Outside working hours ({start_time.strftime('%H:%M')}-{end_time.strftime('%H:%M')}) - skipping.")
         sys.exit(0)
 
     logger.info("=" * 60)
@@ -236,7 +267,7 @@ def auto_update():
             if ip.startswith(network.get("ip_prefix", "")):
                 _set_mattermost_custom_status(network.get("name"), network.get("emoji"))
                 location_found = True
-                break  # Stop after the first match
+                break
 
         if not location_found:
             logger.info("ℹ️  Unknown location, clearing status")
