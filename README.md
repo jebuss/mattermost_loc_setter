@@ -40,9 +40,11 @@ mm-status clear
 mm-status test
 ```
 
-## Automation (macOS)
+## Automation
 
-Use `launchd` for reliable background execution. Create the file `~/Library/LaunchAgents/org.lamarr.mattermost-status.plist` with the following content:
+### Option 1: macOS launchd (Recommended for macOS)
+
+Use `launchd` for reliable background execution with proper network permissions. Create the file `~/Library/LaunchAgents/org.lamarr.mattermost-status.plist` with the following content:
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
@@ -59,11 +61,53 @@ Use `launchd` for reliable background execution. Create the file `~/Library/Laun
     <key>StartInterval</key>
     <integer>60</integer>
     <key>StandardOutPath</key>
-    <string>/Users/buss/data/mm_loc_setter.log</string>
+    <string>/tmp/mm_loc_setter.log</string>
     <key>StandardErrorPath</key>
-    <string>/Users/buss/data/mm_loc_setter_error.log</string>
+    <string>/tmp/mm_loc_setter_error.log</string>
+    <key>RunAtLoad</key>
+    <false/>
 </dict>
 </plist>
 ```
 
-Load it with: `launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/org.lamarr.mattermost-status.plist`
+**Load and manage the agent:**
+
+```bash
+# Load the agent
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/org.lamarr.mattermost-status.plist
+
+# Start it immediately
+launchctl kickstart -k gui/$(id -u)/org.lamarr.mattermost-status
+
+# Stop the agent
+launchctl bootout gui/$(id -u)/org.lamarr.mattermost-status
+
+# Check if it's running
+launchctl list | grep mattermost
+```
+
+**Important:** Replace `/usr/local/bin/mm-status` with the actual path from `which mm-status`.
+
+### Option 2: Cron (Linux/Unix)
+
+For Linux systems or if you prefer cron on macOS, add a cron job:
+
+```bash
+# Edit your crontab
+crontab -e
+
+# Add this line to run every minute between 8am-6pm on weekdays
+*/1 8-18 * * 1-5 /usr/local/bin/mm-status auto >> /tmp/mm_loc_setter.log 2>&1
+```
+
+**Important notes for cron:**
+- Replace `/usr/local/bin/mm-status` with the output from `which mm-status`
+- On macOS, you may need to grant Terminal/cron Full Disk Access in System Preferences → Security & Privacy → Privacy
+- The script includes time checks, so it will only run during working hours even if cron runs 24/7
+
+**To remove the cron job:**
+
+```bash
+crontab -e
+# Delete the mm-status line and save
+```
