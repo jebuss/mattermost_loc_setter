@@ -17,3 +17,6 @@ venv/
 
 # Config files
 config.toml
+
+# pip
+*.egg-info
