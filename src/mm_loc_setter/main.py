@@ -165,39 +165,39 @@ def clear_mattermost_custom_status_command():
 
 
 def are_ports_connected_any(connections, ports=[8801]):
-    def find_ports_in_connection(connection):
-        try:
-            return connection.raddr.port in ports
-        except AttributeError:
-            return
-    for c in connections:
-        if find_ports_in_connection(c):
-            return True
+    """Check if any connection uses one of the specified ports."""
+    return any(
+        getattr(getattr(conn, 'raddr', None), 'port', None) in ports
+        for conn in connections
+    )
+
+def is_in_meeting(process_name, ports):
+    """Generic function to check if a process is in a meeting based on network connections."""
+    try:
+        for proc in psutil.process_iter(['name']):
+            proc_name = proc.info.get('name', '').lower()
+            if process_name in proc_name:
+                try:
+                    conns = proc.net_connections(kind='inet')
+                    if are_ports_connected_any(conns, ports=ports):
+                        return True
+                except (psutil.AccessDenied, psutil.NoSuchProcess):
+                    continue
+    except Exception as e:
+        logger.debug(f"Error checking {process_name} meeting status: {e}")
     return False
 
 def zoom_in_meeting():
     """Check if Zoom is actively connected (likely in a meeting)."""
-    for proc in psutil.process_iter(['name']):
-        try:
-            if proc.info['name'] and "zoom" in proc.info['name'].lower():
-                conns = proc.net_connections(kind='inet')
-                if are_ports_connected_any(conns, ports=[8801]):
-                    return True
-        except (psutil.AccessDenied, psutil.NoSuchProcess):
-            continue
-    return False
+    return is_in_meeting('zoom', ports=[8801, 8802, 8803])
 
 def teams_in_meeting():
     """Check if MS Teams is actively connected (likely in a meeting)."""
-    for proc in psutil.process_iter(['name']):
-        try:
-            if proc.info['name'] and "teams" in proc.info['name'].lower():
-                conns = proc.net_connections(kind='inet')
-                if are_ports_connected_any(conns, ports=[3478, 3479, 3480, 3481]):
-                    return True
-        except (psutil.AccessDenied, psutil.NoSuchProcess):
-            continue
-    return False
+    return is_in_meeting('teams', ports=[3478, 3479, 3480, 3481])
+
+def webex_in_meeting():
+    """Check if Webex is actively connected (likely in a meeting)."""
+    return is_in_meeting('webex', ports=[5004, 5005, 9000, 9001])
 
 def check_mattermost_reachable(timeout=5, retries=1):
     """Check if Mattermost server is reachable."""
@@ -255,15 +255,19 @@ def auto_update():
     ip = get_local_ip()
     zoom = zoom_in_meeting()
     teams = teams_in_meeting()
+    webex = webex_in_meeting()
 
     logger.info(f"🌐 My local IP: {ip}")
     logger.info(f'{"📹" if zoom else "❌"} Zoom meeting: {"Yes" if zoom else "No"}')
     logger.info(f'{"💼" if teams else "❌"} Teams meeting: {"Yes" if teams else "No"}')
+    logger.info(f'{"📞" if webex else "❌"} Webex meeting: {"Yes" if webex else "No"}')
 
     if zoom:
         _set_mattermost_custom_status("In a Zoom Meeting", "zoom")
     elif teams:
         _set_mattermost_custom_status("In a Teams Meeting", "microsoft_teams")
+    elif webex:
+        _set_mattermost_custom_status("In a Webex Meeting", "zoom")
     else:
         location_found = False
         for network in CONFIGURED_NETWORKS:
