@@ -123,6 +123,11 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Allow overriding log level via env var MM_LOG_LEVEL (e.g., DEBUG)
+_env_log_level = os.getenv("MM_LOG_LEVEL", "").upper()
+if _env_log_level in {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}:
+    logger.setLevel(getattr(logging, _env_log_level))
+
 
 @click.group()
 def cli():
