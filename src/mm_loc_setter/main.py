@@ -149,25 +149,225 @@ def get_local_ip():
     return ip
 
 
-def _set_mattermost_custom_status(message, emoji="house", retries=3, delay=5):
-    """Internal function to update Mattermost custom status (emoji + text)."""
+def parse_dnd_end_time(time_input):
+    """Parse DND end time from various formats to Unix timestamp.
+    
+    Supported formats:
+    - Unix timestamp (integer): 1703001600
+    - ISO 8601: "2025-12-18T10:30:00", "2025-12-18T10:30:00Z"
+    - Relative time: "10m", "1h", "30s" (from now)
+    
+    Returns:
+        Unix timestamp (int) or None if parsing fails
+    """
+    if time_input is None:
+        return None
+    
+    try:
+        # Try to parse as integer (Unix timestamp)
+        if isinstance(time_input, int):
+            return time_input
+        
+        time_input = str(time_input).strip()
+        
+        # Check for relative time format (e.g., "10m", "1h", "30s")
+        if time_input[-1] in ['m', 'h', 's', 'd']:
+            unit = time_input[-1]
+            value = int(time_input[:-1])
+            now = time.time()
+            
+            if unit == 's':
+                return int(now + value)
+            elif unit == 'm':
+                return int(now + value * 60)
+            elif unit == 'h':
+                return int(now + value * 3600)
+            elif unit == 'd':
+                return int(now + value * 86400)
+        
+        # Try to parse as ISO 8601 format
+        # Handle both with and without 'Z' suffix
+        iso_str = time_input.replace('Z', '+00:00')
+        
+        # Try different ISO formats
+        for fmt in [
+            "%Y-%m-%dT%H:%M:%S%z",
+            "%Y-%m-%dT%H:%M:%S",
+            "%Y-%m-%d %H:%M:%S",
+            "%Y-%m-%d"
+        ]:
+            try:
+                if '+' in iso_str or '-' in iso_str.split('T')[-1]:
+                    # Has timezone info
+                    dt = datetime.fromisoformat(iso_str)
+                else:
+                    # No timezone info, treat as local time
+                    dt = datetime.strptime(time_input, fmt)
+                
+                # Convert to Unix timestamp
+                return int(dt.timestamp())
+            except (ValueError, AttributeError):
+                continue
+        
+        # Try to parse as integer (in case it's a string representation)
+        return int(time_input)
+    
+    except (ValueError, TypeError) as e:
+        logger.warning(f"⚠️  Failed to parse DND end time '{time_input}': {e}")
+        return None
+
+
+def _set_mattermost_custom_status(message, emoji="house", duration=None, expires_at=None, retries=3, delay=5):
+    """Internal function to update Mattermost custom status (emoji + text),
+    trying compatible payloads across Mattermost versions.
+
+    Args:
+        message: Custom status message text
+        emoji: Emoji name for the status
+        duration: How long the custom status should last (e.g., "today", "four_hours")
+        expires_at: When the custom status should expire (Unix timestamp, ISO 8601, or relative like "1h")
+        retries: Number of retry attempts
+        delay: Delay in seconds between retries
+    """
     logger.info(f"🔄 Setting status: {message} (emoji: {emoji})")
     headers = {
         "Accept": "application/json",
         "Authorization": f"Bearer {ACCESS_TOKEN}",
         "Content-Type": "application/json"
     }
+    # Some Mattermost servers require explicit user_id in the URL
     url = f"{MATTERMOST_URL}/api/v4/users/{USER_ID}/status/custom"
-    payload = {"emoji": emoji, "text": message, "durartion": "today"}
+
+    # Build base fields
+    def _normalize_emoji_name(name: str) -> str:
+        aliases = {
+            # Common alias mapping to Twemoji names
+            "utensils": "fork_and_knife",
+        }
+        return aliases.get(name, name)
+
+    base = {"emoji": _normalize_emoji_name(emoji), "text": message}
+
+    # Optional duration as-is (server validates allowed values)
+    if duration:
+        base["duration"] = duration
+
+    # Parse and format expires_at as ISO string if provided
+    if expires_at:
+        parsed_expires_at = parse_dnd_end_time(expires_at)
+        if parsed_expires_at is None:
+            logger.error(f"❌ Failed to parse expires_at: {expires_at}")
+            return False
+        expires_iso = datetime.utcfromtimestamp(parsed_expires_at).strftime('%Y-%m-%dT%H:%M:%SZ')
+        base["expires_at"] = expires_iso
+        logger.info(f"   Duration: {duration}, Expires at: {expires_iso}")
+    elif duration:
+        logger.info(f"   Duration: {duration}")
+
+    payload = dict(base)
+
+    for attempt in range(retries):
+        try:
+            logger.debug(f"Trying PUT {url} with payload: {payload}")
+            response = requests.put(url, json=payload, headers=headers, timeout=10, verify=True)
+            if response.status_code in (200, 201):
+                logger.info(f"✅ Custom status set to: {message}")
+                return True
+
+            # Improve error reporting and guidance
+            text = response.text
+            try:
+                data = response.json()
+            except Exception:
+                data = {}
+
+            err_id = data.get("id", "")
+            if err_id == "api.custom_status.set_custom_statuses.emoji_not_found":
+                logger.error("❌ Emoji not found. Try a valid emoji name (e.g., 'fork_and_knife' instead of 'utensils').")
+            elif err_id == "api.context.invalid_body_param.app_error":
+                logger.error("❌ Server rejected payload. This server expects a root-level custom status payload with fields 'emoji', 'text', and optional 'expires_at' as ISO.")
+            else:
+                logger.error(f"❌ Failed to set custom status: {response.status_code}, {text}")
+        except Exception as e:
+            logger.error(f"❗ Unexpected error on attempt {attempt+1} ({type(e).__name__}): {e}")
+
+        if attempt < retries - 1:
+            logger.warning(f"⚠️  Retrying in {delay}s...")
+            time.sleep(delay)
+        else:
+            logger.error(f"❌ Failed after {retries} attempts")
+            return False
+
+@cli.command('custom')
+@click.argument('message')
+@click.argument('emoji', default='house')
+@click.option('--duration', type=str, default=None, help='How long the custom status should last (e.g., "30m", "1h", "today")')
+@click.option('--expires-at', type=str, default=None, help='When the custom status should expire (Unix timestamp, ISO 8601, or relative like "1h")')
+def set_mattermost_custom_status(message, emoji, duration, expires_at):
+    """Update Mattermost custom status (emoji + text).
+    
+    Examples:
+        mm-status custom "In a meeting" zoom
+        mm-status custom "Working from home" house --duration "1h"
+        mm-status custom "At lunch" utensils --expires-at "30m"
+        mm-status custom "Away" palm_tree --duration "today"
+        mm-status custom "Busy" hourglass --expires-at "2025-12-18T17:00:00"
+    """
+    success = _set_mattermost_custom_status(message, emoji, duration=duration, expires_at=expires_at)
+    if not success:
+        sys.exit(1)
+
+def _set_mattermost_status(status, dnd_end_time=None, retries=3, delay=5):
+    """Internal function to update Mattermost presence status (online, away, dnd, offline).
+    
+    Args:
+        status: One of 'online', 'away', 'dnd', 'offline'
+        dnd_end_time: Optional DND end time in various formats:
+            - Unix timestamp (int): 1703001600
+            - ISO 8601: "2025-12-18T10:30:00" or "2025-12-18T10:30:00Z"
+            - Relative time: "10m", "1h", "30s", "1d" (from now)
+        retries: Number of retry attempts
+        delay: Delay in seconds between retries
+    """
+    valid_statuses = ["online", "away", "dnd", "offline"]
+    if status not in valid_statuses:
+        logger.error(f"❌ Invalid status '{status}'. Must be one of: {', '.join(valid_statuses)}")
+        return False
+    
+    # Parse dnd_end_time if provided
+    parsed_dnd_end_time = None
+    if dnd_end_time and status == "dnd":
+        parsed_dnd_end_time = parse_dnd_end_time(dnd_end_time)
+        if parsed_dnd_end_time is None:
+            logger.error(f"❌ Failed to parse DND end time: {dnd_end_time}")
+            return False
+    
+    log_msg = f"🔄 Setting status: {status}"
+    if parsed_dnd_end_time and status == "dnd":
+        dnd_dt = datetime.fromtimestamp(parsed_dnd_end_time)
+        log_msg += f" (DND end time: {dnd_dt.isoformat()})"
+    logger.info(log_msg)
+    
+    headers = {
+        "Accept": "application/json",
+        "Authorization": f"Bearer {ACCESS_TOKEN}",
+        "Content-Type": "application/json"
+    }
+    url = f"{MATTERMOST_URL}/api/v4/users/{USER_ID}/status"
+    payload = {"user_id": USER_ID, "status": status}
+    
+    if parsed_dnd_end_time and status == "dnd":
+        payload["dnd_end_time"] = parsed_dnd_end_time
+    
     for attempt in range(retries):
         try:
             response = requests.put(url, json=payload, headers=headers, timeout=10, verify=True)
             if response.status_code in (200, 201):
-                logger.info(f"✅ Custom status set to: {message}")
-                return
+                logger.info(f"✅ Status set to: {status}")
+                return True
             else:
-                logger.error(f"❌ Failed to set custom status: {response.status_code}, {response.text}")
-                return
+                logger.error(f"❌ Failed to set status: {response.status_code}, {response.text}")
+                return False
         except Exception as e:
             logger.error(f"❗ Unexpected error on attempt {attempt+1} ({type(e).__name__}): {e}")
             if attempt < retries - 1:
@@ -175,14 +375,24 @@ def _set_mattermost_custom_status(message, emoji="house", retries=3, delay=5):
                 time.sleep(delay)
             else:
                 logger.error(f"❌ Failed after {retries} attempts")
-                return
+                return False
 
 @cli.command('set')
-@click.argument('message')
-@click.argument('emoji', default='house')
-def set_mattermost_custom_status(message, emoji):
-    """Update Mattermost custom status (emoji + text)."""
-    _set_mattermost_custom_status(message, emoji)
+@click.argument('status', type=click.Choice(['online', 'away', 'dnd', 'offline']))
+@click.option('--dnd-end-time', type=str, default=None, help='DND end time (Unix timestamp, ISO 8601, or relative like "1h", "30m")')
+def set_mattermost_status_command(status, dnd_end_time):
+    """Update Mattermost presence status (online, away, dnd, offline).
+    
+    Examples:
+        mm-status set online
+        mm-status set dnd --dnd-end-time 1703001600
+        mm-status set dnd --dnd-end-time "2025-12-18T10:30:00"
+        mm-status set dnd --dnd-end-time "1h"
+        mm-status set dnd --dnd-end-time "30m"
+    """
+    success = _set_mattermost_status(status, dnd_end_time=dnd_end_time)
+    if not success:
+        sys.exit(1)
 
 def _clear_mattermost_custom_status():
     """Internal function to clear Mattermost custom status."""
