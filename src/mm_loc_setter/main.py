@@ -44,6 +44,40 @@ MATTERMOST_URL = get_config_value("url", "https://your-mattermost-server.com")
 ACCESS_TOKEN = get_config_value("access_token")
 USER_ID = get_config_value("user_id")
 
+def _fetch_user_id_from_api(retries=3, delay=2):
+    """Fetch user_id from Mattermost API using /api/v4/users/me endpoint."""
+    if not ACCESS_TOKEN:
+        return None
+    
+    headers = {
+        "Accept": "application/json",
+        "Authorization": f"Bearer {ACCESS_TOKEN}",
+    }
+    url = f"{MATTERMOST_URL}/api/v4/users/me"
+    
+    for attempt in range(retries):
+        try:
+            response = requests.get(url, headers=headers, timeout=10, verify=True)
+            if response.status_code == 200:
+                user_data = response.json()
+                fetched_id = user_data.get("id")
+                if fetched_id:
+                    return fetched_id
+            else:
+                logger.debug(f"Failed to fetch user_id: {response.status_code}, {response.text}")
+        except Exception as e:
+            logger.debug(f"Error fetching user_id on attempt {attempt+1}: {e}")
+        
+        if attempt < retries - 1:
+            import time as time_module
+            time_module.sleep(delay)
+    
+    return None
+
+# Fetch user_id from API if not configured
+if not USER_ID:
+    USER_ID = _fetch_user_id_from_api()
+
 # Load the list of networks
 CONFIGURED_NETWORKS = get_config_value("networks", [])
 
@@ -162,6 +196,22 @@ def _clear_mattermost_custom_status():
 def clear_mattermost_custom_status_command():
     """Clear Mattermost custom status."""
     _clear_mattermost_custom_status()
+
+
+@cli.command('userid')
+def fetch_user_id_command():
+    """Fetch and display the user_id from Mattermost API."""
+    if not ACCESS_TOKEN:
+        logger.error("❌ MM_ACCESS_TOKEN must be set.")
+        sys.exit(1)
+    
+    fetched_id = _fetch_user_id_from_api(retries=3, delay=2)
+    if fetched_id:
+        logger.info(f"✅ User ID fetched successfully: {fetched_id}")
+        click.echo(fetched_id)
+    else:
+        logger.error("❌ Failed to fetch user ID from Mattermost API")
+        sys.exit(1)
 
 
 def are_ports_connected_any(connections, ports=[8801]):
