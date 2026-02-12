@@ -29,6 +29,9 @@ def parse_dnd_end_time(time_input: Optional[str]) -> Optional[int]:
         
         time_input = str(time_input).strip()
         
+        if not time_input:
+            return None
+        
         # Check for relative time format (e.g., "10m", "1h", "30s")
         if time_input[-1] in ['m', 'h', 's', 'd']:
             unit = time_input[-1]

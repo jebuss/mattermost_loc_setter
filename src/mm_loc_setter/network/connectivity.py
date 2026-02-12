@@ -1,5 +1,6 @@
 """Network connectivity checks and utilities."""
 import socket as sock
+import time
 import requests
 from mm_loc_setter.config import MATTERMOST_URL
 from mm_loc_setter.logging_setup import logger
@@ -38,7 +39,6 @@ def check_mattermost_reachable(timeout: int = 5, retries: int = 1) -> bool:
                 return True
         except Exception:
             if attempt < retries - 1:
-                import time
                 time.sleep(3)
     return False
 
