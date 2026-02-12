@@ -81,6 +81,9 @@ if not USER_ID:
 # Load the list of networks
 CONFIGURED_NETWORKS = get_config_value("networks", [])
 
+# Load absence periods
+ABSENCE_PERIODS = get_config_value("absence_periods", [])
+
 # Load working hours configuration
 WORKING_DAYS = get_config_value("weekdays", [0, 1, 2, 3, 4], section="working_hours")
 start_time_str = get_config_value("start_time", "8:00", section="working_hours")
@@ -488,6 +491,79 @@ def check_network_route(hostname, port=443):
     except Exception:
         return False
 
+def parse_absence_datetime(time_str):
+    """Parse datetime string for absence periods.
+    
+    Supports formats:
+    - "YYYY-MM-DD" (assumes 00:00:00 for start, 23:59:59 for end)
+    - "YYYY-MM-DDTHH:MM:SS"
+    - "YYYY-MM-DD HH:MM:SS"
+    
+    Returns:
+        datetime object or None if parsing fails
+    """
+    if not time_str:
+        return None
+    
+    try:
+        time_str = str(time_str).strip()
+        
+        # Try different formats
+        for fmt in [
+            "%Y-%m-%dT%H:%M:%S",
+            "%Y-%m-%d %H:%M:%S",
+            "%Y-%m-%d",
+        ]:
+            try:
+                return datetime.strptime(time_str, fmt)
+            except ValueError:
+                continue
+        
+        logger.warning(f"⚠️  Could not parse datetime: {time_str}")
+        return None
+    except Exception as e:
+        logger.warning(f"⚠️  Error parsing datetime '{time_str}': {e}")
+        return None
+
+def get_active_absence_period():
+    """Check if current time falls within any configured absence period.
+    
+    Returns:
+        dict with 'status' and 'emoji' keys if in absence period, None otherwise
+    """
+    if not ABSENCE_PERIODS:
+        return None
+    
+    now = datetime.now()
+    
+    for period in ABSENCE_PERIODS:
+        start_str = period.get("start_time")
+        end_str = period.get("end_time")
+        
+        if not start_str or not end_str:
+            logger.warning(f"⚠️  Absence period '{period.get('name', 'unnamed')}' missing start_time or end_time")
+            continue
+        
+        start_time = parse_absence_datetime(start_str)
+        end_time = parse_absence_datetime(end_str)
+        
+        if not start_time or not end_time:
+            continue
+        
+        # If only date is provided for end_time, set to end of day
+        if end_str and 'T' not in end_str and ' ' not in end_str:
+            end_time = end_time.replace(hour=23, minute=59, second=59)
+        
+        # Check if current time is within the period
+        if start_time <= now <= end_time:
+            status = period.get("status", "Away")
+            emoji = period.get("emoji", "palm_tree")
+            name = period.get("name", "Absence")
+            logger.info(f"📅 Active absence period: {name} ({start_time.strftime('%Y-%m-%d')} to {end_time.strftime('%Y-%m-%d')})")
+            return {"status": status, "emoji": emoji, "name": name, "end_time": end_time}
+    
+    return None
+
 @cli.command('auto')
 def auto_update():
     """Automatically update status based on location and meeting state."""
@@ -517,6 +593,16 @@ def auto_update():
         sys.exit(0)
 
     logger.info("✅ Mattermost server is reachable")
+    
+    # Check for active absence periods first (highest priority)
+    absence = get_active_absence_period()
+    if absence:
+        # Use the end_time of the absence period as expires_at
+        expires_at = int(absence["end_time"].timestamp())
+        _set_mattermost_custom_status(absence["status"], absence["emoji"], expires_at=expires_at)
+        logger.info("✅ Status update completed (absence period)")
+        return
+    
     ip = get_local_ip()
     zoom = zoom_in_meeting()
     teams = teams_in_meeting()

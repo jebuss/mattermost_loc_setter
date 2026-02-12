@@ -36,3 +36,23 @@ ip_prefix = "172.16.0."
 name = "Home Office"
 emoji = "house"
 ip_prefix = "192.168.1."
+
+# --- Absence Periods (Optional) ---
+# Define periods when you're away (vacation, sick leave, etc.)
+# These take priority over location-based status updates
+# Times can be in ISO 8601 format: "YYYY-MM-DDTHH:MM:SS" or "YYYY-MM-DD"
+# If time is omitted, assumes start of day (00:00:00) for start_time and end of day (23:59:59) for end_time
+
+[[absence_periods]]
+name = "Summer Vacation"
+start_time = "2026-07-01"
+end_time = "2026-07-15"
+status = "On Vacation"
+emoji = "palm_tree"
+
+[[absence_periods]]
+name = "Sick Leave"
+start_time = "2026-03-10T08:00:00"
+end_time = "2026-03-12T18:00:00"
+status = "Out Sick"
+emoji = "face_with_thermometer"
