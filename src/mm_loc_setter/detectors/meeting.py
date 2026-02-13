@@ -1,10 +1,12 @@
 """Meeting detection for various video conferencing tools."""
-import psutil
 from typing import List
+
+import psutil
+
 from mm_loc_setter.logging_setup import logger
 
 
-def are_ports_connected_any(connections, ports: List[int] = [8801]) -> bool:
+def are_ports_connected_any(connections, ports: List[int] = None) -> bool:
     """Check if any connection uses one of the specified ports.
     
     Args:
@@ -14,6 +16,8 @@ def are_ports_connected_any(connections, ports: List[int] = [8801]) -> bool:
     Returns:
         True if any connection uses one of the ports
     """
+    if ports is None:
+        ports = [8801]
     return any(
         getattr(getattr(conn, 'raddr', None), 'port', None) in ports
         for conn in connections
@@ -40,7 +44,7 @@ def is_in_meeting(process_name: str, ports: List[int]) -> bool:
                         return True
                 except (psutil.AccessDenied, psutil.NoSuchProcess):
                     continue
-    except Exception as e:
+    except (psutil.Error, OSError) as e:
         logger.debug(f"Error checking {process_name} meeting status: {e}")
     return False
 

@@ -1,8 +1,10 @@
 """Mattermost API client functions."""
-import requests
 import time
 from datetime import datetime
 from typing import Optional
+
+import requests
+
 from mm_loc_setter.config import MATTERMOST_URL, ACCESS_TOKEN, USER_ID
 from mm_loc_setter.logging_setup import logger
 from mm_loc_setter.utils import parse_dnd_end_time
@@ -37,7 +39,7 @@ def fetch_user_id_from_api(retries=3, delay=2) -> Optional[str]:
                     return fetched_id
             else:
                 logger.debug(f"Failed to fetch user_id: {response.status_code}, {response.text}")
-        except Exception as e:
+        except requests.RequestException as e:
             logger.debug(f"Error fetching user_id on attempt {attempt+1}: {e}")
         
         if attempt < retries - 1:
@@ -111,7 +113,7 @@ def set_mattermost_custom_status(
             text = response.text
             try:
                 data = response.json()
-            except Exception:
+            except ValueError:
                 data = {}
 
             err_id = data.get("id", "")
@@ -121,7 +123,7 @@ def set_mattermost_custom_status(
                 logger.error("❌ Server rejected payload. This server expects a root-level custom status payload with fields 'emoji', 'text', and optional 'expires_at' as ISO.")
             else:
                 logger.error(f"❌ Failed to set custom status: {response.status_code}, {text}")
-        except Exception as e:
+        except requests.RequestException as e:
             logger.error(f"❗ Unexpected error on attempt {attempt+1} ({type(e).__name__}): {e}")
 
         if attempt < retries - 1:
@@ -187,7 +189,7 @@ def set_mattermost_status(
             else:
                 logger.error(f"❌ Failed to set status: {response.status_code}, {response.text}")
                 return False
-        except Exception as e:
+        except requests.RequestException as e:
             logger.error(f"❗ Unexpected error on attempt {attempt+1} ({type(e).__name__}): {e}")
             if attempt < retries - 1:
                 logger.warning(f"⚠️  Retrying in {delay}s...")
@@ -213,6 +215,6 @@ def clear_mattermost_custom_status() -> bool:
         else:
             logger.error(f"❌ Failed to clear custom status: {response.status_code}, {response.text}")
             return False
-    except Exception as e:
+    except requests.RequestException as e:
         logger.error(f"❌ Failed to clear custom status: {e}")
         return False

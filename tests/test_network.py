@@ -1,6 +1,7 @@
 """Tests for network connectivity checks."""
 import pytest
 from unittest.mock import Mock, patch, MagicMock
+import requests
 from mm_loc_setter.network.connectivity import (
     get_local_ip,
     check_mattermost_reachable,
@@ -54,7 +55,7 @@ class TestCheckMattermostReachable:
     @patch('mm_loc_setter.network.connectivity.requests.get')
     def test_server_not_reachable(self, mock_get):
         """Test when server is not reachable."""
-        mock_get.side_effect = Exception("Connection failed")
+        mock_get.side_effect = requests.RequestException("Connection failed")
         
         result = check_mattermost_reachable(timeout=5, retries=1)
         
@@ -66,7 +67,7 @@ class TestCheckMattermostReachable:
         """Test retry behavior."""
         mock_response = Mock()
         mock_response.status_code = 200
-        mock_get.side_effect = [Exception("Fail 1"), mock_response]
+        mock_get.side_effect = [requests.RequestException("Fail 1"), mock_response]
         
         result = check_mattermost_reachable(timeout=5, retries=2)
         
@@ -119,7 +120,7 @@ class TestCheckNetworkRoute:
     @patch('mm_loc_setter.network.connectivity.sock.gethostbyname')
     def test_route_dns_fails(self, mock_gethostbyname):
         """Test when DNS lookup fails."""
-        mock_gethostbyname.side_effect = Exception("DNS failed")
+        mock_gethostbyname.side_effect = OSError("DNS failed")
         
         result = check_network_route('invalid.example.com', port=443)
         

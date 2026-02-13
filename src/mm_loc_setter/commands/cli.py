@@ -1,7 +1,9 @@
 """CLI command definitions."""
 import sys
-import click
 from datetime import datetime
+
+import click
+
 from mm_loc_setter.config import (
     MATTERMOST_URL,
     ACCESS_TOKEN,

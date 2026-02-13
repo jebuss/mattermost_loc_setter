@@ -37,7 +37,7 @@ def check_mattermost_reachable(timeout: int = 5, retries: int = 1) -> bool:
             response = requests.get(f"{MATTERMOST_URL}/api/v4/system/ping", timeout=timeout, verify=True)
             if response.status_code == 200:
                 return True
-        except Exception:
+        except (requests.RequestException, OSError):
             if attempt < retries - 1:
                 time.sleep(3)
     return False
@@ -60,7 +60,7 @@ def check_network_route(hostname: str, port: int = 443) -> bool:
         result = s.connect_ex((ipv4_address, port))
         s.close()
         return result == 0
-    except Exception:
+    except (OSError, ValueError):
         return False
 
 

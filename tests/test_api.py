@@ -1,6 +1,7 @@
 """Tests for Mattermost API client."""
 import pytest
 from unittest.mock import Mock, patch
+import requests
 from mm_loc_setter.api.client import (
     fetch_user_id_from_api,
     set_mattermost_custom_status,
@@ -53,7 +54,7 @@ class TestFetchUserIdFromApi:
         mock_response = Mock()
         mock_response.status_code = 200
         mock_response.json.return_value = {'id': 'user123'}
-        mock_get.side_effect = [Exception("Network error"), mock_response]
+        mock_get.side_effect = [requests.RequestException("Network error"), mock_response]
         
         result = fetch_user_id_from_api(retries=2, delay=1)
         
@@ -131,7 +132,7 @@ class TestSetMattermostCustomStatus:
     @patch('mm_loc_setter.api.client.requests.put')
     def test_set_custom_status_network_error(self, mock_put):
         """Test when network error occurs."""
-        mock_put.side_effect = Exception("Network error")
+        mock_put.side_effect = requests.RequestException("Network error")
         
         result = set_mattermost_custom_status("Test", "laptop", retries=1)
         
@@ -220,7 +221,7 @@ class TestClearMattermostCustomStatus:
     @patch('mm_loc_setter.api.client.requests.delete')
     def test_clear_custom_status_network_error(self, mock_delete):
         """Test when network error occurs."""
-        mock_delete.side_effect = Exception("Network error")
+        mock_delete.side_effect = requests.RequestException("Network error")
         
         result = clear_mattermost_custom_status()
         
