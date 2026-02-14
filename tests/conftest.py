@@ -1,8 +1,7 @@
 """Pytest configuration and shared fixtures."""
-import pytest
-from unittest.mock import Mock, patch
 import os
-
+from unittest.mock import Mock
+import pytest
 
 @pytest.fixture
 def mock_config_values():

@@ -1,5 +1,4 @@
 """Tests for Mattermost API client."""
-import pytest
 from unittest.mock import Mock, patch
 import requests
 from mm_loc_setter.api.client import (
@@ -181,8 +180,7 @@ class TestSetMattermostStatus:
 
     @patch('mm_loc_setter.api.client.ACCESS_TOKEN', 'test-token')
     @patch('mm_loc_setter.api.client.USER_ID', 'user123')
-    @patch('mm_loc_setter.api.client.requests.put')
-    def test_set_status_invalid_dnd_time(self, mock_put):
+    def test_set_status_invalid_dnd_time(self):
         """Test with invalid DND end time."""
         result = set_mattermost_status("dnd", dnd_end_time="invalid", retries=1)
         

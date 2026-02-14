@@ -1,6 +1,7 @@
 """CLI command definitions."""
 import sys
 from datetime import datetime
+import socket as sock_module
 
 import click
 
@@ -132,7 +133,6 @@ def auto_update():
 @cli.command('test')
 def test_connection():
     """Test connection to Mattermost server."""
-    import socket as sock_module
     
     logger.info("=" * 60)
     logger.info("🧪 Testing connection")
@@ -141,7 +141,7 @@ def test_connection():
     try:
         ipv4 = sock_module.gethostbyname(hostname)
         logger.info(f"✅ DNS IPv4: {hostname} -> {ipv4}")
-    except Exception as e:
+    except sock_module.gaierror as e:
         logger.error(f"❌ DNS failed: {e}")
         return
 

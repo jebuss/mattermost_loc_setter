@@ -1,5 +1,4 @@
 """Tests for configuration loading."""
-import pytest
 import os
 from unittest.mock import patch
 from mm_loc_setter.config.loader import (
@@ -19,9 +18,6 @@ class TestGetConfigValue:
 
     def test_get_from_config_file(self):
         """Test getting value from config dict."""
-        # This test uses the actual loaded config
-        from mm_loc_setter.config import CONFIG
-        
         # Test with a default value if key doesn't exist
         result = get_config_value("nonexistent_key", default="default_value")
         assert result == "default_value"
@@ -58,6 +54,7 @@ class TestParseTimeString:
         """Test parsing time without minutes."""
         hour, minute = parse_time_string("14")
         assert hour == 14
+        assert minute is not None
 
     def test_parse_with_defaults(self):
         """Test using default values."""
@@ -80,3 +77,4 @@ class TestParseTimeString:
         hour, minute = parse_time_string("25:70", default_hour=8, default_minute=0)
         # Should return parts even if invalid
         assert hour == 25  # Parser doesn't validate ranges
+        assert minute == 70

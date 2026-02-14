@@ -111,6 +111,6 @@ def parse_absence_datetime(time_str: Optional[str]) -> Optional[datetime]:
         
         logger.warning(f"⚠️  Could not parse datetime: {time_str}")
         return None
-    except Exception as e:
-        logger.warning(f"⚠️  Error parsing datetime '{time_str}': {e}")
+    except (ValueError, TypeError, AttributeError):
+        logger.warning(f"⚠️  Error parsing datetime '{time_str}': %s", exc_info=True)
         return None

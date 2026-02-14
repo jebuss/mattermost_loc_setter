@@ -2,9 +2,8 @@
 import socket as sock
 import time
 import requests
-from mm_loc_setter.config import MATTERMOST_URL
-from mm_loc_setter.logging_setup import logger
 from urllib3.util import connection
+from mm_loc_setter.config import MATTERMOST_URL
 
 
 def get_local_ip() -> str:

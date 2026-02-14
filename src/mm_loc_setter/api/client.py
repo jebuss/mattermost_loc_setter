@@ -1,6 +1,6 @@
 """Mattermost API client functions."""
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 import requests
@@ -94,7 +94,7 @@ def set_mattermost_custom_status(
         if parsed_expires_at is None:
             logger.error(f"❌ Failed to parse expires_at: {expires_at}")
             return False
-        expires_iso = datetime.utcfromtimestamp(parsed_expires_at).strftime('%Y-%m-%dT%H:%M:%SZ')
+        expires_iso = datetime.fromtimestamp(parsed_expires_at, timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
         base["expires_at"] = expires_iso
         logger.info(f"   Duration: {duration}, Expires at: {expires_iso}")
     elif duration:

@@ -1,6 +1,5 @@
 """Tests for meeting detection."""
-import pytest
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 from mm_loc_setter.detectors.meeting import (
     are_ports_connected_any,
     is_in_meeting,

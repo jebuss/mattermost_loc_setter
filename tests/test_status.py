@@ -1,7 +1,6 @@
 """Tests for status management."""
-import pytest
-from datetime import datetime, timedelta
-from unittest.mock import Mock, patch
+from datetime import datetime
+from unittest.mock import patch
 from mm_loc_setter.status.absence import get_active_absence_period
 
 
