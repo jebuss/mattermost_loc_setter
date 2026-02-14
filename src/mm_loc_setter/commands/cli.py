@@ -1,4 +1,5 @@
 """CLI command definitions."""
+import logging
 import sys
 from datetime import datetime
 import socket as sock_module
@@ -30,8 +31,14 @@ from mm_loc_setter.status import handle_status_update
 
 
 @click.group()
-def cli():
+@click.option('--log-level', '-v', type=click.Choice(['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'], case_sensitive=False),
+              default=None, help='Set logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)')
+@click.pass_context
+def cli(ctx, log_level):
     """Mattermost location status setter."""
+    if log_level:
+        logger.setLevel(getattr(logging, log_level.upper()))
+    
     if not all([ACCESS_TOKEN, USER_ID]):
         logger.error("❌ Environment variables MM_ACCESS_TOKEN and MM_USER_ID must be set.")
         sys.exit(1)
