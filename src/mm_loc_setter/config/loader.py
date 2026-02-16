@@ -85,3 +85,43 @@ end_time_str = get_config_value("end_time", "18:00", section="working_hours")
 
 WORKING_START_HOUR, WORKING_START_MINUTE = parse_time_string(start_time_str, 8, 0)
 WORKING_END_HOUR, WORKING_END_MINUTE = parse_time_string(end_time_str, 18, 0)
+
+# Load daily working hours (optional overrides)
+DAILY_WORKING_HOURS = CONFIG.get("working_hours", {}).get("daily", {})
+
+
+def get_working_hours_for_day(weekday):
+    """Get working hours for a specific weekday.
+    
+    Args:
+        weekday: Weekday number (0=Monday, 6=Sunday)
+        
+    Returns:
+        Dict with 'start_hour', 'start_minute', 'end_hour', 'end_minute'
+    """
+    day_names = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
+    day_name = day_names[weekday]
+    
+    # Check if there's a specific configuration for this day
+    if day_name in DAILY_WORKING_HOURS:
+        day_config = DAILY_WORKING_HOURS[day_name]
+        start_str = day_config.get("start_time")
+        end_str = day_config.get("end_time")
+        
+        start_h, start_m = parse_time_string(start_str, WORKING_START_HOUR, WORKING_START_MINUTE)
+        end_h, end_m = parse_time_string(end_str, WORKING_END_HOUR, WORKING_END_MINUTE)
+        
+        return {
+            "start_hour": start_h,
+            "start_minute": start_m,
+            "end_hour": end_h,
+            "end_minute": end_m,
+        }
+    
+    # Fall back to global default
+    return {
+        "start_hour": WORKING_START_HOUR,
+        "start_minute": WORKING_START_MINUTE,
+        "end_hour": WORKING_END_HOUR,
+        "end_minute": WORKING_END_MINUTE,
+    }

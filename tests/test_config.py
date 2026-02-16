@@ -4,6 +4,7 @@ from unittest.mock import patch
 from mm_loc_setter.config.loader import (
     get_config_value,
     parse_time_string,
+    get_working_hours_for_day,
 )
 
 
@@ -78,3 +79,40 @@ class TestParseTimeString:
         # Should return parts even if invalid
         assert hour == 25  # Parser doesn't validate ranges
         assert minute == 70
+
+
+class TestGetWorkingHoursForDay:
+    """Test daily working hours retrieval."""
+
+    def test_get_default_working_hours(self):
+        """Test getting default working hours when no daily config."""
+        # Monday (0) should return defaults if not configured
+        hours = get_working_hours_for_day(0)
+        assert "start_hour" in hours
+        assert "start_minute" in hours
+        assert "end_hour" in hours
+        assert "end_minute" in hours
+
+    def test_all_weekdays_return_valid_hours(self):
+        """Test that all weekdays return valid hour/minute values."""
+        for weekday in range(7):
+            hours = get_working_hours_for_day(weekday)
+            assert isinstance(hours["start_hour"], int)
+            assert isinstance(hours["start_minute"], int)
+            assert isinstance(hours["end_hour"], int)
+            assert isinstance(hours["end_minute"], int)
+            assert 0 <= hours["start_hour"] <= 23
+            assert 0 <= hours["start_minute"] <= 59
+            assert 0 <= hours["end_hour"] <= 23
+            assert 0 <= hours["end_minute"] <= 59
+
+    def test_monday_is_weekday_0(self):
+        """Test that weekday 0 is Monday."""
+        monday_hours = get_working_hours_for_day(0)
+        assert monday_hours is not None
+
+    def test_sunday_is_weekday_6(self):
+        """Test that weekday 6 is Sunday."""
+        sunday_hours = get_working_hours_for_day(6)
+        assert sunday_hours is not None
+

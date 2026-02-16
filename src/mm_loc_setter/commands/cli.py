@@ -15,6 +15,7 @@ from mm_loc_setter.config import (
     WORKING_START_MINUTE,
     WORKING_END_HOUR,
     WORKING_END_MINUTE,
+    get_working_hours_for_day,
 )
 from mm_loc_setter.logging_setup import logger
 from mm_loc_setter.api import (
@@ -113,9 +114,20 @@ def auto_update():
         logger.debug(f"⏸️  Today ({now.strftime('%A')}) is not a working day - skipping.")
         sys.exit(0)
     
-    # Check working hours with minutes
-    start_time = now.replace(hour=WORKING_START_HOUR, minute=WORKING_START_MINUTE, second=0, microsecond=0)
-    end_time = now.replace(hour=WORKING_END_HOUR, minute=WORKING_END_MINUTE, second=0, microsecond=0)
+    # Get working hours for today (may be different each day)
+    today_hours = get_working_hours_for_day(now.weekday())
+    start_time = now.replace(
+        hour=today_hours["start_hour"],
+        minute=today_hours["start_minute"],
+        second=0,
+        microsecond=0
+    )
+    end_time = now.replace(
+        hour=today_hours["end_hour"],
+        minute=today_hours["end_minute"],
+        second=0,
+        microsecond=0
+    )
     
     if now < start_time or now >= end_time:
         logger.debug(f"⏸️  Outside working hours ({start_time.strftime('%H:%M')}-{end_time.strftime('%H:%M')}) - skipping.")

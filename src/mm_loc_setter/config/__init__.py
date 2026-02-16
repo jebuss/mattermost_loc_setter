@@ -13,6 +13,7 @@ from .loader import (
     WORKING_END_HOUR,
     WORKING_END_MINUTE,
     get_config_value,
+    get_working_hours_for_day,
 )
 
 __all__ = [
@@ -29,4 +30,5 @@ __all__ = [
     "WORKING_END_HOUR",
     "WORKING_END_MINUTE",
     "get_config_value",
+    "get_working_hours_for_day",
 ]
