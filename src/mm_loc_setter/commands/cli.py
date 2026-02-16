@@ -11,10 +11,6 @@ from mm_loc_setter.config import (
     ACCESS_TOKEN,
     USER_ID,
     WORKING_DAYS,
-    WORKING_START_HOUR,
-    WORKING_START_MINUTE,
-    WORKING_END_HOUR,
-    WORKING_END_MINUTE,
     get_working_hours_for_day,
 )
 from mm_loc_setter.logging_setup import logger
@@ -35,7 +31,7 @@ from mm_loc_setter.status import handle_status_update
 @click.option('--log-level', '-v', type=click.Choice(['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'], case_sensitive=False),
               default=None, help='Set logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)')
 @click.pass_context
-def cli(ctx, log_level):
+def cli(_ctx, log_level):
     """Mattermost location status setter."""
     if log_level:
         logger.setLevel(getattr(logging, log_level.upper()))
@@ -43,7 +39,6 @@ def cli(ctx, log_level):
     if not all([ACCESS_TOKEN, USER_ID]):
         logger.error("❌ Environment variables MM_ACCESS_TOKEN and MM_USER_ID must be set.")
         sys.exit(1)
-
 
 @cli.command('custom')
 @click.argument('message')
