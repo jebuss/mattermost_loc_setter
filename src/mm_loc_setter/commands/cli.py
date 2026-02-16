@@ -11,8 +11,8 @@ from mm_loc_setter.config import (
     ACCESS_TOKEN,
     USER_ID,
     WORKING_DAYS,
-    get_working_hours_for_day,
 )
+from mm_loc_setter.config import get_working_hours_for_day
 from mm_loc_setter.logging_setup import logger
 from mm_loc_setter.api import (
     fetch_user_id_from_api,
@@ -31,7 +31,7 @@ from mm_loc_setter.status import handle_status_update
 @click.option('--log-level', '-v', type=click.Choice(['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'], case_sensitive=False),
               default=None, help='Set logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)')
 @click.pass_context
-def cli(_ctx, log_level):
+def cli(ctx, log_level):
     """Mattermost location status setter."""
     if log_level:
         logger.setLevel(getattr(logging, log_level.upper()))
@@ -39,6 +39,7 @@ def cli(_ctx, log_level):
     if not all([ACCESS_TOKEN, USER_ID]):
         logger.error("❌ Environment variables MM_ACCESS_TOKEN and MM_USER_ID must be set.")
         sys.exit(1)
+
 
 @cli.command('custom')
 @click.argument('message')
@@ -109,8 +110,14 @@ def auto_update():
         logger.debug(f"⏸️  Today ({now.strftime('%A')}) is not a working day - skipping.")
         sys.exit(0)
     
-    # Get working hours for today (may be different each day)
-    today_hours = get_working_hours_for_day(now.weekday())
+    # Get working hours for today (may be different each day or have exceptions)
+    today_hours = get_working_hours_for_day(now.weekday(), date=now.date())
+    
+    # Check if today is a non-working day exception
+    if today_hours is None:
+        logger.debug(f"⏸️  Today ({now.strftime('%A, %Y-%m-%d')}) is marked as a non-working day exception - skipping.")
+        sys.exit(0)
+    
     start_time = now.replace(
         hour=today_hours["start_hour"],
         minute=today_hours["start_minute"],

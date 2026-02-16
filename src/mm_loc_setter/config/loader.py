@@ -1,6 +1,7 @@
 """Configuration loading from config file and environment variables."""
 import os
 from pathlib import Path
+from datetime import datetime
 import logging
 
 try:
@@ -67,6 +68,25 @@ def parse_time_string(time_str, default_hour=0, default_minute=0):
         return (default_hour, default_minute)
 
 
+def parse_date_string(date_str):
+    """Parse a date string in format 'YYYY-MM-DD' and return a date object.
+    
+    Args:
+        date_str: Date string in format 'YYYY-MM-DD'
+        
+    Returns:
+        datetime.date object or None if parsing fails
+    """
+    if not date_str:
+        return None
+    
+    try:
+        return datetime.strptime(date_str, "%Y-%m-%d").date()
+    except ValueError:
+        logger.warning(f"⚠️  Invalid date format '{date_str}', expected 'YYYY-MM-DD'")
+        return None
+
+
 # --- CONFIGURATION VALUES ---
 MATTERMOST_URL = get_config_value("url", "https://your-mattermost-server.com")
 ACCESS_TOKEN = get_config_value("access_token")
@@ -89,20 +109,52 @@ WORKING_END_HOUR, WORKING_END_MINUTE = parse_time_string(end_time_str, 18, 0)
 # Load daily working hours (optional overrides)
 DAILY_WORKING_HOURS = CONFIG.get("working_hours", {}).get("daily", {})
 
+# Load workday exceptions (specific dates with custom working hours)
+WORKDAY_EXCEPTIONS = CONFIG.get("working_hours", {}).get("exceptions", [])
 
-def get_working_hours_for_day(weekday):
-    """Get working hours for a specific weekday.
+
+def get_working_hours_for_day(weekday, date=None):
+    """Get working hours for a specific weekday or date.
+    
+    Priority:
+    1. Workday exception for the specific date
+    2. Daily override for the weekday
+    3. Global default
     
     Args:
         weekday: Weekday number (0=Monday, 6=Sunday)
+        date: Optional datetime.date object to check for exceptions
         
     Returns:
         Dict with 'start_hour', 'start_minute', 'end_hour', 'end_minute'
     """
+    # Check for workday exceptions first
+    if date:
+        for exception in WORKDAY_EXCEPTIONS:
+            exception_date = parse_date_string(exception.get("date"))
+            if exception_date == date:
+                # Found a matching exception
+                if exception.get("is_non_working_day"):
+                    # This day is marked as non-working
+                    return None
+                
+                # Get custom working hours for this exception
+                start_str = exception.get("start_time")
+                end_str = exception.get("end_time")
+                start_h, start_m = parse_time_string(start_str, WORKING_START_HOUR, WORKING_START_MINUTE)
+                end_h, end_m = parse_time_string(end_str, WORKING_END_HOUR, WORKING_END_MINUTE)
+                
+                return {
+                    "start_hour": start_h,
+                    "start_minute": start_m,
+                    "end_hour": end_h,
+                    "end_minute": end_m,
+                }
+    
     day_names = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
     day_name = day_names[weekday]
     
-    # Check if there's a specific configuration for this day
+    # Check if there's a specific configuration for this weekday
     if day_name in DAILY_WORKING_HOURS:
         day_config = DAILY_WORKING_HOURS[day_name]
         start_str = day_config.get("start_time")

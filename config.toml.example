@@ -28,6 +28,15 @@ thursday = { start_time = "08:00", end_time = "17:00" }
 friday = { start_time = "08:00", end_time = "16:00" }
 # saturday and sunday are not specified - they won't be working days unless added to 'weekdays'
 
+# --- Workday Exceptions (Optional) ---
+# Define workday exceptions for specific dates (e.g., holidays, special days)
+[working_hours.exceptions]
+# Example: Custom working hours on a specific date
+# [[working_hours.exceptions]]
+# date = "2026-12-24"  # Christmas Eve
+# start_time = "08:00"
+# end_time = "12:00"
+
 # --- Networks (Optional) ---
 # Define a list of networks to check against.
 # The script will use the first match it finds.
