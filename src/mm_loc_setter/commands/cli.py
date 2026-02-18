@@ -11,8 +11,9 @@ from mm_loc_setter.config import (
     ACCESS_TOKEN,
     USER_ID,
     WORKING_DAYS,
+    WORKDAY_EXCEPTIONS,
 )
-from mm_loc_setter.config import get_working_hours_for_day
+from mm_loc_setter.config import get_working_hours_for_day, get_exception_for_date
 from mm_loc_setter.logging_setup import logger
 from mm_loc_setter.api import (
     fetch_user_id_from_api,
@@ -137,6 +138,19 @@ def auto_update():
 
     logger.info("=" * 60)
     logger.info("🚀 Starting automatic status update")
+    
+    if WORKDAY_EXCEPTIONS:
+        logger.info(f"ℹ️  Working hours exceptions configured: {len(WORKDAY_EXCEPTIONS)} exception(s)")
+        for i, exception in enumerate(WORKDAY_EXCEPTIONS, 1):
+            date_str = exception.get("date", "N/A")
+            if exception.get("is_non_working_day"):
+                logger.info(f"   {i}. {date_str} - Non-working day")
+            else:
+                end_time = exception.get("end_time", "N/A")
+                logger.info(f"   {i}. {date_str} - End time: {end_time}")
+
+    # Get exception for today if it exists
+    today_exception = get_exception_for_date(now.date())
 
     if not check_network_route(MATTERMOST_URL):
         logger.warning("⚠️  Cannot establish TCP connection to Mattermost server. Skipping.")
@@ -146,8 +160,9 @@ def auto_update():
         logger.warning("⚠️  Mattermost server not reachable. Skipping.")
         sys.exit(0)
 
+    exception_end_time = today_exception.get("end_time") if today_exception else None
     logger.info("✅ Mattermost server is reachable")
-    
+
     handle_status_update()
 
 

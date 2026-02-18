@@ -177,3 +177,19 @@ def get_working_hours_for_day(weekday, date=None):
         "end_hour": WORKING_END_HOUR,
         "end_minute": WORKING_END_MINUTE,
     }
+
+def get_exception_for_date(date):
+    """Get the workday exception for a specific date.
+    
+    Args:
+        date: datetime.date object
+        
+    Returns:
+        Dict with exception data or None if no exception for this date
+    """
+    for exception in WORKDAY_EXCEPTIONS:
+        exception_date = parse_date_string(exception.get("date"))
+        if exception_date == date:
+            return exception
+    
+    return None

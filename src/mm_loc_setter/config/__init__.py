@@ -12,8 +12,10 @@ from .loader import (
     WORKING_START_MINUTE,
     WORKING_END_HOUR,
     WORKING_END_MINUTE,
+    WORKDAY_EXCEPTIONS,
     get_config_value,
     get_working_hours_for_day,
+    get_exception_for_date
 )
 
 __all__ = [
@@ -29,6 +31,8 @@ __all__ = [
     "WORKING_START_MINUTE",
     "WORKING_END_HOUR",
     "WORKING_END_MINUTE",
+    "WORKDAY_EXCEPTIONS",
     "get_config_value",
     "get_working_hours_for_day",
+    "get_exception_for_date"
 ]
