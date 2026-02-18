@@ -65,7 +65,7 @@ def set_custom_status(message, emoji, duration, expires_at):
 @cli.command('set')
 @click.argument('status', type=click.Choice(['online', 'away', 'dnd', 'offline']))
 @click.option('--dnd-end-time', type=str, default=None, help='DND end time (Unix timestamp, ISO 8601, or relative like "1h", "30m")')
-def set_status(status, dnd_end_time):
+def set_status(status, dnd_end_time=None):
     """Update Mattermost presence status (online, away, dnd, offline).
     
     Examples:
@@ -109,6 +109,7 @@ def auto_update():
     
     if now.weekday() not in WORKING_DAYS:
         logger.debug(f"⏸️  Today ({now.strftime('%A')}) is not a working day - skipping.")
+        set_mattermost_status('offline')
         sys.exit(0)
     
     # Get working hours for today (may be different each day or have exceptions)
