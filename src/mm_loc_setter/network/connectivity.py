@@ -1,5 +1,6 @@
 """Network connectivity checks and utilities."""
 import socket as sock
+import subprocess
 import time
 import requests
 from urllib3.util import connection
@@ -7,18 +8,36 @@ from mm_loc_setter.config import MATTERMOST_URL
 
 
 def get_local_ip() -> str:
-    """Get the local IP address.
+    """Get the local network IP address (excludes VPN).
     
     Returns:
-        Local IPv4 address
+        Local network IPv4 address
     """
-    s = sock.socket(sock.AF_INET, sock.SOCK_DGRAM)
     try:
-        s.connect(("8.8.8.8", 80))
-        ip = s.getsockname()[0]
-    finally:
-        s.close()
-    return ip
+        # Use ifconfig to get all network interfaces
+        result = subprocess.run(
+            ["ifconfig"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+            check=False
+        )
+        
+        lines = result.stdout.split('\n')
+        
+        for line in lines:
+            # Extract IPv4 address from inet lines
+            if 'inet ' in line:
+                parts = line.strip().split()
+                if len(parts) >= 2 and parts[0] == 'inet':
+                    ip = parts[1]
+                    # Skip loopback addresses
+                    if not ip.startswith('127.'):
+                        return ip
+        
+        return "127.0.0.1"
+    except (subprocess.TimeoutExpired, FileNotFoundError):
+        return "127.0.0.1"
 
 
 def check_mattermost_reachable(timeout: int = 5, retries: int = 1) -> bool:
