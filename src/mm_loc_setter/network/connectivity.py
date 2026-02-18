@@ -1,6 +1,5 @@
 """Network connectivity checks and utilities."""
 import socket as sock
-import subprocess
 import time
 import requests
 from urllib3.util import connection
@@ -8,35 +7,24 @@ from mm_loc_setter.config import MATTERMOST_URL
 
 
 def get_local_ip() -> str:
-    """Get the local network IP address (excludes VPN).
+    """Get the local network IP address (excludes VPN and loopback).
     
     Returns:
         Local network IPv4 address
     """
     try:
-        # Use ifconfig to get all network interfaces
-        result = subprocess.run(
-            ["ifconfig"],
-            capture_output=True,
-            text=True,
-            timeout=5,
-            check=False
-        )
+        # Get all addresses for the local hostname
+        hostname = sock.gethostname()
+        addresses = sock.getaddrinfo(hostname, None, sock.AF_INET, sock.SOCK_DGRAM)
         
-        lines = result.stdout.split('\n')
-        
-        for line in lines:
-            # Extract IPv4 address from inet lines
-            if 'inet ' in line:
-                parts = line.strip().split()
-                if len(parts) >= 2 and parts[0] == 'inet':
-                    ip = parts[1]
-                    # Skip loopback addresses
-                    if not ip.startswith('127.'):
-                        return ip
+        # Filter out loopback addresses and return first valid local IP
+        for addr in addresses:
+            ip = addr[4][0]
+            if not ip.startswith('127.'):
+                return ip
         
         return "127.0.0.1"
-    except (subprocess.TimeoutExpired, FileNotFoundError):
+    except (sock.error, OSError):
         return "127.0.0.1"
 
 
