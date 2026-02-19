@@ -48,6 +48,28 @@ def fetch_user_id_from_api(retries=3, delay=2) -> Optional[str]:
     return None
 
 
+def get_current_mattermost_status() -> Optional[str]:
+    """Fetch current Mattermost presence status.
+    
+    Returns:
+        Status string (online, away, dnd, offline) or None if unavailable
+    """
+    headers = {
+        "Accept": "application/json",
+        "Authorization": f"Bearer {ACCESS_TOKEN}",
+    }
+    url = f"{MATTERMOST_URL}/api/v4/users/me/status"
+    try:
+        response = requests.get(url, headers=headers, timeout=10, verify=True)
+        if response.status_code == 200:
+            data = response.json()
+            return data.get("status")
+        logger.debug(f"Failed to fetch current status: {response.status_code}, {response.text}")
+    except requests.RequestException as e:
+        logger.debug(f"Failed to fetch current status: {e}")
+    return None
+
+
 def set_mattermost_custom_status(
     message: str,
     emoji: str = "house",
@@ -155,6 +177,11 @@ def set_mattermost_status(
     if status not in valid_statuses:
         logger.error(f"❌ Invalid status '{status}'. Must be one of: {', '.join(valid_statuses)}")
         return False
+
+    current_status = get_current_mattermost_status()
+    if current_status == status:
+        logger.debug(f"ℹ️  Status already '{status}', skipping update")
+        return True
     
     parsed_dnd_end_time = None
     if dnd_end_time and status == "dnd":

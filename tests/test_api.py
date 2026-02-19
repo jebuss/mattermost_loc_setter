@@ -3,6 +3,7 @@ from unittest.mock import Mock, patch
 import requests
 from mm_loc_setter.api.client import (
     fetch_user_id_from_api,
+    get_current_mattermost_status,
     set_mattermost_custom_status,
     set_mattermost_status,
     clear_mattermost_custom_status,
@@ -138,13 +139,54 @@ class TestSetMattermostCustomStatus:
         assert result is False
 
 
+class TestGetCurrentMattermostStatus:
+    """Test fetching current presence status."""
+
+    @patch('mm_loc_setter.api.client.ACCESS_TOKEN', 'test-token')
+    @patch('mm_loc_setter.api.client.requests.get')
+    def test_get_current_status_success(self, mock_get):
+        """Test successful status fetch."""
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {'status': 'online'}
+        mock_get.return_value = mock_response
+
+        result = get_current_mattermost_status()
+
+        assert result == 'online'
+
+    @patch('mm_loc_setter.api.client.ACCESS_TOKEN', 'test-token')
+    @patch('mm_loc_setter.api.client.requests.get')
+    def test_get_current_status_non_200(self, mock_get):
+        """Test non-200 response returns None."""
+        mock_response = Mock()
+        mock_response.status_code = 500
+        mock_response.text = 'Error'
+        mock_get.return_value = mock_response
+
+        result = get_current_mattermost_status()
+
+        assert result is None
+
+    @patch('mm_loc_setter.api.client.ACCESS_TOKEN', 'test-token')
+    @patch('mm_loc_setter.api.client.requests.get')
+    def test_get_current_status_request_exception(self, mock_get):
+        """Test request exception returns None."""
+        mock_get.side_effect = requests.RequestException("Network error")
+
+        result = get_current_mattermost_status()
+
+        assert result is None
+
+
 class TestSetMattermostStatus:
     """Test setting presence status."""
 
     @patch('mm_loc_setter.api.client.ACCESS_TOKEN', 'test-token')
     @patch('mm_loc_setter.api.client.USER_ID', 'user123')
+    @patch('mm_loc_setter.api.client.get_current_mattermost_status', return_value=None)
     @patch('mm_loc_setter.api.client.requests.put')
-    def test_set_status_online(self, mock_put):
+    def test_set_status_online(self, mock_put, mock_get_current_status):
         """Test setting online status."""
         mock_response = Mock()
         mock_response.status_code = 200
@@ -158,8 +200,9 @@ class TestSetMattermostStatus:
 
     @patch('mm_loc_setter.api.client.ACCESS_TOKEN', 'test-token')
     @patch('mm_loc_setter.api.client.USER_ID', 'user123')
+    @patch('mm_loc_setter.api.client.get_current_mattermost_status', return_value=None)
     @patch('mm_loc_setter.api.client.requests.put')
-    def test_set_status_dnd_with_end_time(self, mock_put):
+    def test_set_status_dnd_with_end_time(self, mock_put, mock_get_current_status):
         """Test setting DND status with end time."""
         mock_response = Mock()
         mock_response.status_code = 200
@@ -180,7 +223,8 @@ class TestSetMattermostStatus:
 
     @patch('mm_loc_setter.api.client.ACCESS_TOKEN', 'test-token')
     @patch('mm_loc_setter.api.client.USER_ID', 'user123')
-    def test_set_status_invalid_dnd_time(self):
+    @patch('mm_loc_setter.api.client.get_current_mattermost_status', return_value=None)
+    def test_set_status_invalid_dnd_time(self, mock_get_current_status):
         """Test with invalid DND end time."""
         result = set_mattermost_status("dnd", dnd_end_time="invalid", retries=1)
         
