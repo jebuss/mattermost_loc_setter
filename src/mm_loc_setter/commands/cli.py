@@ -107,17 +107,18 @@ def auto_update():
     """Automatically update status based on location and meeting state."""
     now = datetime.now()
     
-    if now.weekday() not in WORKING_DAYS:
-        logger.debug(f"⏸️  Today ({now.strftime('%A')}) is not a working day - skipping.")
+    is_working_day = now.weekday() in WORKING_DAYS
+    today_hours = get_working_hours_for_day(now.weekday(), date=now.date()) if is_working_day else None
+    
+    if not is_working_day:
+        logger.debug(f"⏸️  Today ({now.strftime('%A')}) is not a working day - setting offline.")
         set_mattermost_status('offline')
         sys.exit(0)
     
-    # Get working hours for today (may be different each day or have exceptions)
-    today_hours = get_working_hours_for_day(now.weekday(), date=now.date())
-    
     # Check if today is a non-working day exception
     if today_hours is None:
-        logger.debug(f"⏸️  Today ({now.strftime('%A, %Y-%m-%d')}) is marked as a non-working day exception - skipping.")
+        logger.debug(f"⏸️  Today ({now.strftime('%A, %Y-%m-%d')}) is marked as a non-working day exception - setting offline.")
+        set_mattermost_status('offline')
         sys.exit(0)
     
     start_time = now.replace(
@@ -134,7 +135,8 @@ def auto_update():
     )
     
     if now < start_time or now >= end_time:
-        logger.debug(f"⏸️  Outside working hours ({start_time.strftime('%H:%M')}-{end_time.strftime('%H:%M')}) - skipping.")
+        logger.debug(f"⏸️  Outside working hours ({start_time.strftime('%H:%M')}-{end_time.strftime('%H:%M')}) - setting offline.")
+        set_mattermost_status('offline')
         sys.exit(0)
 
     logger.info("=" * 60)
@@ -161,9 +163,10 @@ def auto_update():
         logger.warning("⚠️  Mattermost server not reachable. Skipping.")
         sys.exit(0)
 
-    exception_end_time = today_exception.get("end_time") if today_exception else None
     logger.info("✅ Mattermost server is reachable")
 
+    set_mattermost_status('online')
+    exception_end_time = today_exception.get("end_time") if today_exception else None
     handle_status_update()
 
 
