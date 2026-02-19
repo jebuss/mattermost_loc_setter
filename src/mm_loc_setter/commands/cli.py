@@ -11,11 +11,9 @@ from mm_loc_setter.config import (
     ACCESS_TOKEN,
     USER_ID,
     WORKING_DAYS,
-    WORKING_START_HOUR,
-    WORKING_START_MINUTE,
-    WORKING_END_HOUR,
-    WORKING_END_MINUTE,
+    WORKDAY_EXCEPTIONS,
 )
+from mm_loc_setter.config import get_working_hours_for_day, get_exception_for_date
 from mm_loc_setter.logging_setup import logger
 from mm_loc_setter.api import (
     fetch_user_id_from_api,
@@ -67,7 +65,7 @@ def set_custom_status(message, emoji, duration, expires_at):
 @cli.command('set')
 @click.argument('status', type=click.Choice(['online', 'away', 'dnd', 'offline']))
 @click.option('--dnd-end-time', type=str, default=None, help='DND end time (Unix timestamp, ISO 8601, or relative like "1h", "30m")')
-def set_status(status, dnd_end_time):
+def set_status(status, dnd_end_time=None):
     """Update Mattermost presence status (online, away, dnd, offline).
     
     Examples:
@@ -109,20 +107,53 @@ def auto_update():
     """Automatically update status based on location and meeting state."""
     now = datetime.now()
     
-    if now.weekday() not in WORKING_DAYS:
-        logger.debug(f"⏸️  Today ({now.strftime('%A')}) is not a working day - skipping.")
+    is_working_day = now.weekday() in WORKING_DAYS
+    today_hours = get_working_hours_for_day(now.weekday(), date=now.date()) if is_working_day else None
+    
+    if not is_working_day:
+        logger.debug(f"⏸️  Today ({now.strftime('%A')}) is not a working day - setting offline.")
+        set_mattermost_status('offline')
         sys.exit(0)
     
-    # Check working hours with minutes
-    start_time = now.replace(hour=WORKING_START_HOUR, minute=WORKING_START_MINUTE, second=0, microsecond=0)
-    end_time = now.replace(hour=WORKING_END_HOUR, minute=WORKING_END_MINUTE, second=0, microsecond=0)
+    # Check if today is a non-working day exception
+    if today_hours is None:
+        logger.debug(f"⏸️  Today ({now.strftime('%A, %Y-%m-%d')}) is marked as a non-working day exception - setting offline.")
+        set_mattermost_status('offline')
+        sys.exit(0)
+    
+    start_time = now.replace(
+        hour=today_hours["start_hour"],
+        minute=today_hours["start_minute"],
+        second=0,
+        microsecond=0
+    )
+    end_time = now.replace(
+        hour=today_hours["end_hour"],
+        minute=today_hours["end_minute"],
+        second=0,
+        microsecond=0
+    )
     
     if now < start_time or now >= end_time:
-        logger.debug(f"⏸️  Outside working hours ({start_time.strftime('%H:%M')}-{end_time.strftime('%H:%M')}) - skipping.")
+        logger.debug(f"⏸️  Outside working hours ({start_time.strftime('%H:%M')}-{end_time.strftime('%H:%M')}) - setting offline.")
+        set_mattermost_status('offline')
         sys.exit(0)
 
     logger.info("=" * 60)
     logger.info("🚀 Starting automatic status update")
+    
+    if WORKDAY_EXCEPTIONS:
+        logger.info(f"ℹ️  Working hours exceptions configured: {len(WORKDAY_EXCEPTIONS)} exception(s)")
+        for i, exception in enumerate(WORKDAY_EXCEPTIONS, 1):
+            date_str = exception.get("date", "N/A")
+            if exception.get("is_non_working_day"):
+                logger.info(f"   {i}. {date_str} - Non-working day")
+            else:
+                end_time = exception.get("end_time", "N/A")
+                logger.info(f"   {i}. {date_str} - End time: {end_time}")
+
+    # Get exception for today if it exists
+    today_exception = get_exception_for_date(now.date())
 
     if not check_network_route(MATTERMOST_URL):
         logger.warning("⚠️  Cannot establish TCP connection to Mattermost server. Skipping.")
@@ -133,7 +164,9 @@ def auto_update():
         sys.exit(0)
 
     logger.info("✅ Mattermost server is reachable")
-    
+
+    set_mattermost_status('online')
+    exception_end_time = today_exception.get("end_time") if today_exception else None
     handle_status_update()
 
 

@@ -3,6 +3,7 @@ from unittest.mock import Mock, patch
 import requests
 from mm_loc_setter.api.client import (
     fetch_user_id_from_api,
+    get_current_mattermost_status,
     set_mattermost_custom_status,
     set_mattermost_status,
     clear_mattermost_custom_status,
@@ -136,6 +137,46 @@ class TestSetMattermostCustomStatus:
         result = set_mattermost_custom_status("Test", "laptop", retries=1)
         
         assert result is False
+
+
+class TestGetCurrentMattermostStatus:
+    """Test fetching current presence status."""
+
+    @patch('mm_loc_setter.api.client.ACCESS_TOKEN', 'test-token')
+    @patch('mm_loc_setter.api.client.requests.get')
+    def test_get_current_status_success(self, mock_get):
+        """Test successful status fetch."""
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {'status': 'online'}
+        mock_get.return_value = mock_response
+
+        result = get_current_mattermost_status()
+
+        assert result == 'online'
+
+    @patch('mm_loc_setter.api.client.ACCESS_TOKEN', 'test-token')
+    @patch('mm_loc_setter.api.client.requests.get')
+    def test_get_current_status_non_200(self, mock_get):
+        """Test non-200 response returns None."""
+        mock_response = Mock()
+        mock_response.status_code = 500
+        mock_response.text = 'Error'
+        mock_get.return_value = mock_response
+
+        result = get_current_mattermost_status()
+
+        assert result is None
+
+    @patch('mm_loc_setter.api.client.ACCESS_TOKEN', 'test-token')
+    @patch('mm_loc_setter.api.client.requests.get')
+    def test_get_current_status_request_exception(self, mock_get):
+        """Test request exception returns None."""
+        mock_get.side_effect = requests.RequestException("Network error")
+
+        result = get_current_mattermost_status()
+
+        assert result is None
 
 
 class TestSetMattermostStatus:

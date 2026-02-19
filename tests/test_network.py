@@ -1,5 +1,4 @@
 """Tests for network connectivity checks."""
-import pytest
 from unittest.mock import Mock, patch, MagicMock
 import requests
 from mm_loc_setter.network.connectivity import (
@@ -12,30 +11,32 @@ from mm_loc_setter.network.connectivity import (
 class TestGetLocalIp:
     """Test local IP address retrieval."""
 
-    @patch('mm_loc_setter.network.connectivity.sock.socket')
-    def test_get_local_ip_success(self, mock_socket_class):
+    @patch('mm_loc_setter.network.connectivity.sock.getaddrinfo')
+    @patch('mm_loc_setter.network.connectivity.sock.gethostname')
+    def test_get_local_ip_success(self, mock_gethostname, mock_getaddrinfo):
         """Test successful IP retrieval."""
-        mock_socket = MagicMock()
-        mock_socket.getsockname.return_value = ('192.168.1.100', 12345)
-        mock_socket_class.return_value = mock_socket
+        mock_gethostname.return_value = "my-host"
+        mock_getaddrinfo.return_value = [
+            (None, None, None, None, ('127.0.0.1', 0)),
+            (None, None, None, None, ('192.168.1.100', 0)),
+        ]
         
         result = get_local_ip()
         
         assert result == '192.168.1.100'
-        mock_socket.connect.assert_called_once_with(("8.8.8.8", 80))
-        mock_socket.close.assert_called_once()
+        mock_gethostname.assert_called_once_with()
+        mock_getaddrinfo.assert_called_once()
 
-    @patch('mm_loc_setter.network.connectivity.sock.socket')
-    def test_get_local_ip_closes_socket_on_error(self, mock_socket_class):
-        """Test that socket is closed even on error."""
-        mock_socket = MagicMock()
-        mock_socket.connect.side_effect = Exception("Connection error")
-        mock_socket_class.return_value = mock_socket
+    @patch('mm_loc_setter.network.connectivity.sock.getaddrinfo')
+    @patch('mm_loc_setter.network.connectivity.sock.gethostname')
+    def test_get_local_ip_returns_loopback_on_error(self, mock_gethostname, mock_getaddrinfo):
+        """Test that loopback is returned on lookup error."""
+        mock_gethostname.return_value = "my-host"
+        mock_getaddrinfo.side_effect = OSError("Lookup failed")
         
-        with pytest.raises(Exception):
-            get_local_ip()
+        result = get_local_ip()
         
-        mock_socket.close.assert_called_once()
+        assert result == '127.0.0.1'
 
 
 class TestCheckMattermostReachable:
