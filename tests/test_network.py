@@ -1,5 +1,4 @@
 """Tests for network connectivity checks."""
-import pytest
 from unittest.mock import Mock, patch, MagicMock
 import requests
 from mm_loc_setter.network.connectivity import (

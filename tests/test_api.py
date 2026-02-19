@@ -184,9 +184,8 @@ class TestSetMattermostStatus:
 
     @patch('mm_loc_setter.api.client.ACCESS_TOKEN', 'test-token')
     @patch('mm_loc_setter.api.client.USER_ID', 'user123')
-    @patch('mm_loc_setter.api.client.get_current_mattermost_status', return_value=None)
     @patch('mm_loc_setter.api.client.requests.put')
-    def test_set_status_online(self, mock_put, mock_get_current_status):
+    def test_set_status_online(self, mock_put):
         """Test setting online status."""
         mock_response = Mock()
         mock_response.status_code = 200
@@ -200,9 +199,8 @@ class TestSetMattermostStatus:
 
     @patch('mm_loc_setter.api.client.ACCESS_TOKEN', 'test-token')
     @patch('mm_loc_setter.api.client.USER_ID', 'user123')
-    @patch('mm_loc_setter.api.client.get_current_mattermost_status', return_value=None)
     @patch('mm_loc_setter.api.client.requests.put')
-    def test_set_status_dnd_with_end_time(self, mock_put, mock_get_current_status):
+    def test_set_status_dnd_with_end_time(self, mock_put):
         """Test setting DND status with end time."""
         mock_response = Mock()
         mock_response.status_code = 200
@@ -223,8 +221,7 @@ class TestSetMattermostStatus:
 
     @patch('mm_loc_setter.api.client.ACCESS_TOKEN', 'test-token')
     @patch('mm_loc_setter.api.client.USER_ID', 'user123')
-    @patch('mm_loc_setter.api.client.get_current_mattermost_status', return_value=None)
-    def test_set_status_invalid_dnd_time(self, mock_get_current_status):
+    def test_set_status_invalid_dnd_time(self):
         """Test with invalid DND end time."""
         result = set_mattermost_status("dnd", dnd_end_time="invalid", retries=1)
         
