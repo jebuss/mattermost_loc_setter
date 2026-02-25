@@ -39,22 +39,27 @@ friday = { start_time = "08:00", end_time = "16:00" }
 
 # --- Networks (Optional) ---
 # Define a list of networks to check against.
-# The script will use the first match it finds.
+# If you have multiple network connections (LAN + WiFi), the script will match based on priority.
+# Lower priority values are checked first (e.g., priority=1 before priority=2)
+# If priority is not specified, it defaults to 999.
 
 [[networks]]
 name = "At the Office"
 emoji = "office"
 ip_prefix = "10.1.0."
+priority = 1  # Check this network first (e.g., LAN at office)
 
 [[networks]]
 name = "On Campus"
 emoji = "books"
 ip_prefix = "172.16.0."
+priority = 1  # Same priority as Office
 
 [[networks]]
-name = "Home Office"
+name = "Home Office WiFi"
 emoji = "house"
 ip_prefix = "192.168.1."
+priority = 2  # Check this after higher priority networks (e.g., WiFi at home)
 
 # --- Absence Periods (Optional) ---
 # Define periods when you're away (vacation, sick leave, etc.)
