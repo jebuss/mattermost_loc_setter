@@ -30,7 +30,6 @@ def handle_status_update(exception_end_time=None):
         logger.info("✅ Status update completed (absence period)")
         return
     
-    ip = get_local_ip()
     all_ips = get_all_local_ips()
     zoom = zoom_in_meeting()
     teams = teams_in_meeting()
