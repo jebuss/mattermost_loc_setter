@@ -68,7 +68,10 @@ def handle_status_update(exception_end_time=None):
         sorted_networks = sorted(CONFIGURED_NETWORKS, key=lambda n: n.get("priority", 999))
         
         for network in sorted_networks:
-            ip_prefix = network.get("ip_prefix", "")
+            ip_prefix = network.get("ip_prefix")
+            if not ip_prefix:
+                logger.warning(f"⚠️  Skipping network configuration without a valid ip_prefix: {network!r}")
+                continue
             # Check if any of the IPs match this network
             for ip in all_ips:
                 if ip.startswith(ip_prefix):
