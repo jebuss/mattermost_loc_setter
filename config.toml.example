@@ -59,7 +59,7 @@ priority = 1  # Same priority as Office
 name = "Home Office WiFi"
 emoji = "house"
 ip_prefix = "192.168.1."
-priority = 2  # Check this after higher priority networks (e.g., WiFi at home)
+priority = 2  # Lower priority network (checked after priority 1 networks, e.g., WiFi at home)
 
 # --- Absence Periods (Optional) ---
 # Define periods when you're away (vacation, sick leave, etc.)
