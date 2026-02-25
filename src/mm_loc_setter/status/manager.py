@@ -35,8 +35,9 @@ def handle_status_update(exception_end_time=None):
     teams = teams_in_meeting()
     webex = webex_in_meeting()
 
-    if len(all_ips) > 0:
-        logger.info(f"🌐 All local IPs: {', '.join(all_ips)}")
+    non_loopback_ips = [ip_addr for ip_addr in all_ips if ip_addr != "127.0.0.1"]
+    if non_loopback_ips:
+        logger.info(f"🌐 All local IPs: {', '.join(non_loopback_ips)}")
 
     logger.info(f'{"📹" if zoom else "❌"} Zoom meeting: {"Yes" if zoom else "No"}')
     logger.info(f'{"💼" if teams else "❌"} Teams meeting: {"Yes" if teams else "No"}')
