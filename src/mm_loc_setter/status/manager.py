@@ -69,18 +69,23 @@ def handle_status_update(exception_end_time=None):
         
         for network in sorted_networks:
             ip_prefix = network.get("ip_prefix")
-            if not ip_prefix:
-                logger.warning(f"⚠️  Skipping network configuration without a valid ip_prefix: {network!r}")
-                continue
-            # Check if any of the IPs match this network
-            for ip in all_ips:
-                if ip.startswith(ip_prefix):
-                    logger.info(f"✅ Detected location: {network.get('name')} (IP: {ip})")
-                    set_mattermost_custom_status(network.get("name"), network.get("emoji"), expires_at=expires_at)
-                    location_found = True
+
+        # Filter out loopback addresses (e.g., 127.0.0.1) before matching against networks
+        non_loopback_ips = [ip for ip in all_ips if not ip.startswith("127.")]
+        if len(non_loopback_ips) == 0:
+            logger.info("ℹ️  No non-loopback IPs detected; skipping network-based location detection")
+        else:
+            for network in sorted_networks:
+                ip_prefix = network.get("ip_prefix", "")
+                # Check if any of the IPs match this network
+                for ip in non_loopback_ips:
+                    if ip.startswith(ip_prefix):
+                        logger.info(f"✅ Detected location: {network.get('name')} (IP: {ip})")
+                        set_mattermost_custom_status(network.get("name"), network.get("emoji"), expires_at=expires_at)
+                        location_found = True
+                        break
+                if location_found:
                     break
-            if location_found:
-                break
 
         if not location_found:
             logger.info("ℹ️  Unknown location, clearing status")
