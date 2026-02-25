@@ -11,7 +11,7 @@ from mm_loc_setter.detectors import (
     teams_in_meeting,
     webex_in_meeting,
 )
-from mm_loc_setter.network import get_local_ip
+from mm_loc_setter.network import get_local_ip, get_all_local_ips
 from .absence import get_active_absence_period
 
 
@@ -30,12 +30,15 @@ def handle_status_update(exception_end_time=None):
         logger.info("✅ Status update completed (absence period)")
         return
     
-    ip = get_local_ip()
+    all_ips = get_all_local_ips()
     zoom = zoom_in_meeting()
     teams = teams_in_meeting()
     webex = webex_in_meeting()
 
-    logger.info(f"🌐 My local IP: {ip}")
+    non_loopback_ips = [ip_addr for ip_addr in all_ips if ip_addr != "127.0.0.1"]
+    if non_loopback_ips:
+        logger.info(f"🌐 All local IPs: {', '.join(non_loopback_ips)}")
+
     logger.info(f'{"📹" if zoom else "❌"} Zoom meeting: {"Yes" if zoom else "No"}')
     logger.info(f'{"💼" if teams else "❌"} Teams meeting: {"Yes" if teams else "No"}')
     logger.info(f'{"📞" if webex else "❌"} Webex meeting: {"Yes" if webex else "No"}')
@@ -60,11 +63,29 @@ def handle_status_update(exception_end_time=None):
         set_mattermost_custom_status("In a Webex Meeting", "zoom")
     else:
         location_found = False
-        for network in CONFIGURED_NETWORKS:
-            if ip.startswith(network.get("ip_prefix", "")):
-                set_mattermost_custom_status(network.get("name"), network.get("emoji"), expires_at=expires_at)
-                location_found = True
-                break
+        # Sort networks by priority (lower number = higher priority)
+        # Networks without priority default to 999
+        sorted_networks = sorted(CONFIGURED_NETWORKS, key=lambda n: n.get("priority", 999))
+        
+        for network in sorted_networks:
+            ip_prefix = network.get("ip_prefix")
+
+        # Filter out loopback addresses (e.g., 127.0.0.1) before matching against networks
+        non_loopback_ips = [ip for ip in all_ips if not ip.startswith("127.")]
+        if len(non_loopback_ips) == 0:
+            logger.info("ℹ️  No non-loopback IPs detected; skipping network-based location detection")
+        else:
+            for network in sorted_networks:
+                ip_prefix = network.get("ip_prefix", "")
+                # Check if any of the IPs match this network
+                for ip in non_loopback_ips:
+                    if ip.startswith(ip_prefix):
+                        logger.info(f"✅ Detected location: {network.get('name')} (IP: {ip})")
+                        set_mattermost_custom_status(network.get("name"), network.get("emoji"), expires_at=expires_at)
+                        location_found = True
+                        break
+                if location_found:
+                    break
 
         if not location_found:
             logger.info("ℹ️  Unknown location, clearing status")
